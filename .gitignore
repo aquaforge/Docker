@@ -1,0 +1,77 @@
+# Env files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+Dockerfile.dev
+Dockerfile.local
+
+# Node modules (если используете Node.js)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (если используете Python)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Java (если используете Java)
+*.class
+*.jar
+*.war
+*.ear
+target/
+build/
+
+# PHP (если используете PHP)
+vendor/
+composer.lock
+
+# Ruby (если используете Ruby)
+Gemfile.lock
+.bundle/
+vendor/bundle/
+
+# Go (если используете Go)
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.sum
+
+# Общие временные файлы
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+
+# Docker volumes data
+data/
+volumes/
+docker-data/
