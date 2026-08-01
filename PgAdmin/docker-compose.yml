@@ -1,0 +1,19 @@
+services:
+  pgadmin: 
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: unless-stopped
+    environment: # минимально необходимые переменные для запуска контейнера     
+      - PGADMIN_DEFAULT_EMAIL=${DEFAULT_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${DEFAULT_PASSWORD}
+    volumes:
+      - ./pgadmin_data:/var/lib/pgadmin # путь до папки, где у нас будут храниться все данные приложения
+    ports: # порты контейнера. Подумайте о необходимости закрытия портов если будут использовать обратный прокси. Для целей этой статьи я порты не закрываю.
+      - 8014:80
+    networks: # определяем сети в которых у нас будет работать pgAdmin.
+      - immich_default # сеть, где у нас работает immich
+networks:
+    immich_default:
+        external: true
+    # proxy:
+    #     external: true

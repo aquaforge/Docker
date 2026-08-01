@@ -10,6 +10,9 @@
 # Простой скрипт для монтирования сетевой папки
 mount.cifs //192.168.1.1/EXT4-e8WiPOOI /mnt/router_disk
 
+# Для открытой (гостевой) папки без пароля в /etc/fstab
+# //192.168.1.1/EXT4-e8WiPOOI /mnt/router_disk cifs guest,uid=1000,gid=1000,iocharset=utf8,file_mode=0777,dir_mode=0777 0 0
+
 
 # Проверить статус: nmcli radio wifi
 # Включить nmcli radio wifi on
