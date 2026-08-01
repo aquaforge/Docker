@@ -1,0 +1,10 @@
+# gunicorn https://habr.com/ru/articles/963180/?ysclid=msa1saafv1287752793
+services:
+  docker-links:
+    build: .
+    container_name: docker-links
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
