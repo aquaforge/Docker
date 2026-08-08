@@ -1,6 +1,6 @@
 {
-  "title": "System Monitor",
-  "uid": "system-monitor",
+  "title": "System Monitor with Temperatures",
+  "uid": "system-monitor-temp",
   "version": 1,
   "schemaVersion": 16,
   "panels": [
@@ -8,55 +8,60 @@
       "id": 1,
       "title": "CPU Usage",
       "type": "graph",
-      "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 0,
-        "y": 0
-      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
       "targets": [
-        {
-          "expr": "system_cpu_usage_percent",
-          "legendFormat": "CPU %",
-          "refId": "A"
-        }
+        {"expr": "system_cpu_usage_percent", "legendFormat": "CPU %", "refId": "A"}
       ],
       "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100
-        }
+        "defaults": {"unit": "percent", "min": 0, "max": 100}
       }
     },
     {
       "id": 2,
       "title": "Memory Usage",
       "type": "graph",
-      "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 12,
-        "y": 0
-      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
       "targets": [
-        {
-          "expr": "system_memory_usage_percent",
-          "legendFormat": "Memory %",
-          "refId": "A"
-        },
-        {
-          "expr": "system_memory_used_gb",
-          "legendFormat": "Memory GB",
-          "refId": "B"
-        }
+        {"expr": "system_memory_usage_percent", "legendFormat": "Memory %", "refId": "A"}
       ],
       "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100
-        }
+        "defaults": {"unit": "percent", "min": 0, "max": 100}
+      }
+    },
+    {
+      "id": 3,
+      "title": "CPU Temperature",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+      "targets": [
+        {"expr": "system_cpu_temperature_celsius", "legendFormat": "CPU Temp", "refId": "A"}
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "celsius", "min": 0, "max": 100}
+      }
+    },
+    {
+      "id": 4,
+      "title": "GPU Temperature",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+      "targets": [
+        {"expr": "system_gpu_temperature_celsius", "legendFormat": "GPU Temp", "refId": "A"}
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "celsius", "min": 0, "max": 100}
+      }
+    },
+    {
+      "id": 5,
+      "title": "Disk Temperature",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+      "targets": [
+        {"expr": "system_disk_temperature_celsius", "legendFormat": "Disk Temp", "refId": "A"}
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "celsius", "min": 0, "max": 80}
       }
     }
   ],
@@ -64,8 +69,5 @@
   "time": {
     "from": "now-5m",
     "to": "now"
-  },
-  "timepicker": {
-    "refresh_intervals": ["1s", "5s", "10s", "30s", "1m", "5m"]
   }
 }
