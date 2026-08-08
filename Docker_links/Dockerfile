@@ -2,13 +2,15 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y gcc python3-dev && \
-    pip install flask docker psutil && \
-    apt-get remove -y gcc python3-dev && apt-get autoremove -y
+# Установка системных зависимостей
+RUN apt-get update && apt-get install -y \
+    gcc \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN pip install flask docker psutil
+# Установка Python пакетов
+RUN pip install --no-cache-dir flask docker psutil prometheus-client
 
-COPY requirements.txt .
 COPY app.py .
 
 EXPOSE 80

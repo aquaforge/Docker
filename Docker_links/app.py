@@ -2,10 +2,12 @@
 import docker
 import socket
 import psutil
-import logging
 import os
-from flask import Flask, render_template_string, jsonify, request
+import logging
+from flask import Flask, render_template_string, jsonify, request, Response
 from datetime import datetime
+import prometheus_client
+from prometheus_client import Counter, Gauge, generate_latest, REGISTRY
 
 app = Flask(__name__)
 docker_client = docker.from_env()
@@ -17,6 +19,13 @@ class SuppressStatsLogs(logging.Filter):
 
 logging.getLogger('werkzeug').addFilter(SuppressStatsLogs())
 
+# Prometheus метрики
+cpu_usage = Gauge('system_cpu_usage_percent', 'CPU usage percentage')
+memory_usage = Gauge('system_memory_usage_percent', 'Memory usage percentage')
+memory_used_gb = Gauge('system_memory_used_gb', 'Memory used in GB')
+disk_usage_percent = Gauge('system_disk_usage_percent', 'Disk usage percentage')
+container_count = Gauge('docker_container_count', 'Total number of containers')
+container_running = Gauge('docker_container_running', 'Number of running containers')
 
 def get_server_ip():
     """Определяем IP сервера для ссылок"""
@@ -47,7 +56,6 @@ def get_system_stats():
         # Температура CPU
         cpu_temp = None
         try:
-            # Для Linux
             if os.path.exists('/sys/class/thermal/thermal_zone0/temp'):
                 with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
                     cpu_temp = float(f.read().strip()) / 1000.0
@@ -60,6 +68,18 @@ def get_system_stats():
         # Диск
         disk = psutil.disk_usage('/')
         
+        # Обновляем Prometheus метрики
+        cpu_usage.set(cpu_percent)
+        memory_usage.set(memory.percent)
+        memory_used_gb.set(round(memory.used / (1024**3), 1))
+        disk_usage_percent.set(disk.percent)
+        
+        # Считаем контейнеры
+        containers = docker_client.containers.list(all=True)
+        running = [c for c in containers if c.status == 'running']
+        container_count.set(len(containers))
+        container_running.set(len(running))
+        
         return {
             'cpu_percent': round(cpu_percent, 1),
             'cpu_freq': round(cpu_freq.current, 0) if cpu_freq else None,
@@ -70,6 +90,8 @@ def get_system_stats():
             'disk_used': round(disk.used / (1024**3), 1),
             'disk_total': round(disk.total / (1024**3), 1),
             'disk_percent': disk.percent,
+            'containers_total': len(containers),
+            'containers_running': len(running),
             'timestamp': datetime.now().strftime('%H:%M:%S')
         }
     except Exception as e:
@@ -84,6 +106,8 @@ def get_system_stats():
             'disk_used': 0,
             'disk_total': 0,
             'disk_percent': 0,
+            'containers_total': 0,
+            'containers_running': 0,
             'timestamp': datetime.now().strftime('%H:%M:%S')
         }
 
@@ -113,7 +137,6 @@ HTML_TEMPLATE = """
             margin-bottom: 20px;
         }
         
-        /* System Stats */
         .system-stats {
             background: white;
             border-radius: 10px;
@@ -169,7 +192,6 @@ HTML_TEMPLATE = """
             margin-top: 10px;
         }
         
-        /* Containers */
         .container-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -255,6 +277,21 @@ HTML_TEMPLATE = """
             margin-bottom: 20px;
             border-left: 4px solid #ffc107;
         }
+        .grafana-link {
+            background: #e8f0fe;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .grafana-link a {
+            color: #4a90e2;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .grafana-link a:hover {
+            text-decoration: underline;
+        }
         
         @media (max-width: 600px) {
             .stats-grid {
@@ -269,10 +306,17 @@ HTML_TEMPLATE = """
 <body>
     <h1>🐳 Docker Container Links & System Monitor</h1>
     
-    <!-- System Stats -->
+    <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <div class="server-info" style="flex: 1;">
+            🌐 Server: <strong>{{ server_ip }}</strong>
+        </div>
+        <div class="grafana-link">
+            📊 <a href="http://{{ server_ip }}:3000" target="_blank">Grafana Dashboard</a>
+        </div>
+    </div>
+    
     <div class="system-stats" id="systemStats">
         <div class="stats-grid" id="statsGrid">
-            <!-- CPU -->
             <div class="stat-item">
                 <div class="stat-label">🖥️ CPU Usage</div>
                 <div class="stat-value" id="cpuValue">{{ stats.cpu_percent }}%</div>
@@ -284,7 +328,6 @@ HTML_TEMPLATE = """
                 </div>
             </div>
             
-            <!-- Memory -->
             <div class="stat-item">
                 <div class="stat-label">🧠 Memory</div>
                 <div class="stat-value" id="memoryValue">{{ stats.memory_used }} / {{ stats.memory_total }} GB</div>
@@ -293,7 +336,6 @@ HTML_TEMPLATE = """
                 </div>
             </div>
             
-            <!-- Disk -->
             <div class="stat-item">
                 <div class="stat-label">💾 Disk</div>
                 <div class="stat-value" id="diskValue">{{ stats.disk_used }} / {{ stats.disk_total }} GB</div>
@@ -302,7 +344,6 @@ HTML_TEMPLATE = """
                 </div>
             </div>
             
-            <!-- Containers Count -->
             <div class="stat-item">
                 <div class="stat-label">📦 Containers</div>
                 <div class="stat-value" id="containerCount">{{ containers|length }}</div>
@@ -314,12 +355,8 @@ HTML_TEMPLATE = """
         <div class="stat-timestamp">Updated: <span id="timestamp">{{ stats.timestamp }}</span></div>
     </div>
     
-    <div class="server-info">
-        🌐 Server: <strong>{{ server_ip }}</strong> (links will use this address)
-    </div>
     <button class="refresh-btn" onclick="location.reload()">🔄 Refresh Containers</button>
     
-    <!-- Containers List -->
     <div class="container-grid">
         {% for container in containers %}
         <div class="container-card">
@@ -364,13 +401,11 @@ HTML_TEMPLATE = """
                         return;
                     }
                     
-                    // CPU
                     document.getElementById('cpuValue').textContent = data.cpu_percent + '%';
                     const cpuBar = document.getElementById('cpuBar');
                     cpuBar.style.width = data.cpu_percent + '%';
                     cpuBar.className = 'stat-bar-fill ' + getColorClass(data.cpu_percent);
                     
-                    // CPU Temperature
                     const cpuTemp = document.getElementById('cpuTemp');
                     if (data.cpu_temp !== null && data.cpu_temp !== undefined) {
                         cpuTemp.textContent = data.cpu_temp + '°C';
@@ -378,27 +413,28 @@ HTML_TEMPLATE = """
                         cpuTemp.textContent = 'N/A';
                     }
                     
-                    // Memory
                     document.getElementById('memoryValue').textContent = 
                         data.memory_used + ' / ' + data.memory_total + ' GB';
                     const memoryBar = document.getElementById('memoryBar');
                     memoryBar.style.width = data.memory_percent + '%';
                     memoryBar.className = 'stat-bar-fill ' + getColorClass(data.memory_percent);
                     
-                    // Disk
                     document.getElementById('diskValue').textContent = 
                         data.disk_used + ' / ' + data.disk_total + ' GB';
                     const diskBar = document.getElementById('diskBar');
                     diskBar.style.width = data.disk_percent + '%';
                     diskBar.className = 'stat-bar-fill ' + getColorClass(data.disk_percent);
                     
-                    // Timestamp
                     document.getElementById('timestamp').textContent = data.timestamp;
+                    
+                    if (data.containers_total !== undefined) {
+                        document.getElementById('containerCount').textContent = data.containers_total;
+                        document.getElementById('runningCount').textContent = data.containers_running + ' running';
+                    }
                 })
                 .catch(error => console.error('Error fetching stats:', error));
         }
         
-        // Обновляем каждую секунду
         setInterval(updateStats, 1000);
     </script>
 </body>
@@ -445,10 +481,8 @@ def index():
     except Exception as e:
         return f"Error: {str(e)}", 500
     
-    # Получаем статистику для начальной загрузки
     stats = get_system_stats()
     
-    # Добавляем цвета для начальной загрузки
     def get_color(value):
         if value < 50:
             return 'good'
@@ -472,6 +506,11 @@ def index():
 def api_stats():
     """API endpoint для получения статистики"""
     return jsonify(get_system_stats())
+
+@app.route('/metrics')
+def metrics():
+    """Endpoint для Prometheus"""
+    return Response(generate_latest(REGISTRY), mimetype='text/plain')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=80)
