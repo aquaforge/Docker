@@ -6,6 +6,7 @@ import os
 import logging
 import subprocess
 import re
+import requests
 from flask import Flask, render_template_string, jsonify, request, Response
 from datetime import datetime
 import prometheus_client
@@ -75,32 +76,46 @@ def get_server_ip():
         return 'localhost'
 
 def get_cpu_temperature():
-    """Получение температуры CPU различными способами"""
+    """Получение температуры CPU - ТОЛЬКО CPU"""
     try:
-        # Способ 1: Через /sys/class/thermal (Linux)
+        # Способ 1: /sys/class/thermal (основной для CPU)
         if os.path.exists('/sys/class/thermal/thermal_zone0/temp'):
             with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
-                return float(f.read().strip()) / 1000.0
+                temp = float(f.read().strip()) / 1000.0
+                if 20 < temp < 120:  # Реалистичный диапазон для CPU
+                    print(f"CPU temp from thermal_zone0: {temp}°C")
+                    return temp
         
-        # Способ 2: Через sensors (если установлен)
+        # Способ 2: sensors для CPU
         try:
             result = subprocess.run(['sensors', '-u'], capture_output=True, text=True, timeout=2)
             if result.returncode == 0:
+                # Ищем только CPU (coretemp, k10temp, etc.)
+                in_cpu_section = False
                 for line in result.stdout.split('\n'):
-                    if 'temp1_input' in line or 'Core 0' in line:
+                    # Определяем секцию CPU
+                    if 'coretemp' in line.lower() or 'k10temp' in line.lower() or 'cpu' in line.lower():
+                        in_cpu_section = True
+                    if in_cpu_section and 'temp1_input' in line:
                         match = re.search(r'(\d+\.\d+)', line)
                         if match:
-                            return float(match.group(1))
+                            temp = float(match.group(1))
+                            if 20 < temp < 120:
+                                print(f"CPU temp from sensors: {temp}°C")
+                                return temp
         except:
             pass
         
-        # Способ 3: Через vcgencmd (Raspberry Pi)
+        # Способ 3: vcgencmd для Raspberry Pi
         try:
             result = subprocess.run(['vcgencmd', 'measure_temp'], capture_output=True, text=True, timeout=2)
             if result.returncode == 0:
                 match = re.search(r'(\d+\.\d+)', result.stdout)
                 if match:
-                    return float(match.group(1))
+                    temp = float(match.group(1))
+                    if 20 < temp < 120:
+                        print(f"CPU temp from vcgencmd: {temp}°C")
+                        return temp
         except:
             pass
         
@@ -110,24 +125,63 @@ def get_cpu_temperature():
         return None
 
 def get_gpu_temperature():
-    """Получение температуры GPU (NVIDIA)"""
+    """Получение температуры GPU - ТОЛЬКО GPU"""
     try:
-        # Для NVIDIA GPU
+        # Способ 1: NVIDIA GPU через nvidia-smi
         if os.path.exists('/usr/bin/nvidia-smi'):
-            result = subprocess.run(['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader'], 
-                                  capture_output=True, text=True, timeout=2)
+            result = subprocess.run(
+                ['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader'], 
+                capture_output=True, text=True, timeout=2
+            )
             if result.returncode == 0 and result.stdout.strip():
-                return float(result.stdout.strip())
+                temp = float(result.stdout.strip())
+                if 20 < temp < 120:
+                    print(f"GPU temp from nvidia-smi: {temp}°C")
+                    return temp
         
-        # Для AMD GPU (через sensors)
+        # Способ 2: AMD GPU через sensors
         try:
             result = subprocess.run(['sensors', '-u'], capture_output=True, text=True, timeout=2)
             if result.returncode == 0:
+                in_gpu_section = False
                 for line in result.stdout.split('\n'):
-                    if 'amdgpu' in line.lower() or 'temp1_input' in line:
+                    # Определяем секцию GPU
+                    if 'amdgpu' in line.lower() or 'radeon' in line.lower() or 'nouveau' in line.lower():
+                        in_gpu_section = True
+                    if in_gpu_section and 'temp1_input' in line:
                         match = re.search(r'(\d+\.\d+)', line)
                         if match:
-                            return float(match.group(1))
+                            temp = float(match.group(1))
+                            if 20 < temp < 120:
+                                print(f"GPU temp from sensors: {temp}°C")
+                                return temp
+        except:
+            pass
+        
+        # Способ 3: Intel GPU через sysfs
+        try:
+            if os.path.exists('/sys/class/drm/card0/device/hwmon/hwmon0/temp1_input'):
+                with open('/sys/class/drm/card0/device/hwmon/hwmon0/temp1_input', 'r') as f:
+                    temp = float(f.read().strip()) / 1000.0
+                    if 20 < temp < 120:
+                        print(f"GPU temp from sysfs: {temp}°C")
+                        return temp
+        except:
+            pass
+        
+        # Способ 4: GPU через node_exporter (если доступен)
+        try:
+            response = requests.get('http://node-exporter:9100/metrics', timeout=2)
+            if response.status_code == 200:
+                for line in response.text.split('\n'):
+                    # Ищем GPU в метриках
+                    if 'node_hwmon_temp_celsius' in line and ('gpu' in line.lower() or 'amdgpu' in line.lower()):
+                        match = re.search(r'node_hwmon_temp_celsius\{[^}]*\}\s+([\d.]+)', line)
+                        if match:
+                            temp = float(match.group(1))
+                            if 20 < temp < 120:
+                                print(f"GPU temp from node_exporter: {temp}°C")
+                                return temp
         except:
             pass
         
@@ -137,11 +191,10 @@ def get_gpu_temperature():
         return None
 
 def get_disk_temperature():
-    """Получение температуры SATA SSD диска"""
+    """Получение температуры диска - ТОЛЬКО диск"""
     try:
-        # Способ 1: Через hddtemp (самый простой для SATA)
+        # Способ 1: hddtemp для SATA дисков
         try:
-            # Пробуем разные диски
             for disk in ['sda', 'sdb', 'sdc', 'sdd']:
                 result = subprocess.run(
                     ['hddtemp', '-n', f'/dev/{disk}'], 
@@ -149,113 +202,85 @@ def get_disk_temperature():
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     temp = float(result.stdout.strip())
-                    if 0 < temp < 100:
-                        print(f"Temperature from hddtemp /dev/{disk}: {temp}°C")
+                    if 20 < temp < 80:  # Реалистичный диапазон для диска
+                        print(f"Disk temp from hddtemp /dev/{disk}: {temp}°C")
                         return temp
         except Exception as e:
             print(f"hddtemp error: {e}")
         
-        # Способ 2: Через smartctl (наиболее надежный для SATA)
+        # Способ 2: smartctl для SATA дисков
         try:
-            # Определяем какие диски есть
             result = subprocess.run(
-                ['lsblk', '-d', '-o', 'NAME,TYPE,ROTA,SIZE,MODEL'], 
+                ['lsblk', '-d', '-o', 'NAME,TYPE'], 
                 capture_output=True, text=True, timeout=2
             )
             if result.returncode == 0:
                 for line in result.stdout.split('\n'):
-                    # Ищем SATA диски (обычно sda, sdb и т.д.)
                     if 'disk' in line.lower() and line.strip().startswith('sd'):
                         disk = line.split()[0]
-                        print(f"Checking SATA disk: /dev/{disk}")
-                        
-                        # Пробуем получить температуру через smartctl
                         smart_result = subprocess.run(
                             ['smartctl', '-A', f'/dev/{disk}'], 
                             capture_output=True, text=True, timeout=3
                         )
                         if smart_result.returncode == 0:
                             for line in smart_result.stdout.split('\n'):
-                                # Ищем температуру в разных форматах для SATA
-                                if 'Temperature_Celsius' in line or 'Temperature' in line:
-                                    # Ищем числа в строке
-                                    numbers = re.findall(r'(\d+)', line)
-                                    if numbers:
-                                        # Для SATA дисков температура обычно последнее число в строке
-                                        temp = float(numbers[-1])
-                                        if 0 < temp < 100:
-                                            print(f"Temperature from smartctl /dev/{disk}: {temp}°C")
-                                            return temp
-                                
-                                # Другой формат для некоторых SATA дисков
-                                if '194 Temperature_Celsius' in line:
+                                if 'Temperature_Celsius' in line:
                                     parts = line.split()
-                                    if len(parts) >= 10:
-                                        temp = float(parts[9])
-                                        if 0 < temp < 100:
-                                            print(f"Temperature from smartctl (alt) /dev/{disk}: {temp}°C")
-                                            return temp
+                                    for part in parts:
+                                        try:
+                                            temp = float(part)
+                                            if 20 < temp < 80:
+                                                print(f"Disk temp from smartctl /dev/{disk}: {temp}°C")
+                                                return temp
+                                        except:
+                                            continue
         except Exception as e:
             print(f"smartctl error: {e}")
         
-        # Способ 3: Через /sys/class/thermal (для некоторых SATA SSD)
+        # Способ 3: NVMe диски
         try:
-            # Проверяем все возможные пути
-            for disk in ['sda', 'sdb', 'sdc', 'sdd']:
-                # Путь для некоторых SATA SSD
-                temp_paths = [
-                    f'/sys/block/{disk}/device/hwmon/hwmon0/temp1_input',
-                    f'/sys/block/{disk}/device/hwmon/hwmon1/temp1_input',
-                    f'/sys/block/{disk}/device/temperature',
-                ]
-                for temp_path in temp_paths:
-                    if os.path.exists(temp_path):
-                        with open(temp_path, 'r') as f:
-                            temp = float(f.read().strip())
-                            # Если значение в миллиградусах, делим на 1000
-                            if temp > 1000:
-                                temp = temp / 1000.0
-                            if 0 < temp < 100:
-                                print(f"Temperature from {temp_path}: {temp}°C")
-                                return temp
-        except Exception as e:
-            print(f"sysfs error: {e}")
+            for disk in ['nvme0n1', 'nvme1n1']:
+                temp_path = f'/sys/block/{disk}/device/temperature'
+                if os.path.exists(temp_path):
+                    with open(temp_path, 'r') as f:
+                        temp = float(f.read().strip())
+                        if 20 < temp < 80:
+                            print(f"Disk temp from NVMe {disk}: {temp}°C")
+                            return temp
+        except:
+            pass
         
-        # Способ 4: Через drivetemp (ядро Linux)
+        # Способ 4: drivetemp через sysfs
         try:
-            # Ищем все hwmon устройства
-            hwmon_dirs = []
             for root, dirs, files in os.walk('/sys/class/hwmon/'):
                 for dir in dirs:
                     if dir.startswith('hwmon'):
-                        hwmon_dirs.append(os.path.join(root, dir))
-            
-            for hwmon_dir in hwmon_dirs:
-                temp_file = os.path.join(hwmon_dir, 'temp1_input')
-                if os.path.exists(temp_file):
-                    with open(temp_file, 'r') as f:
-                        temp = float(f.read().strip())
-                        if temp > 1000:
-                            temp = temp / 1000.0
-                        if 0 < temp < 100:
-                            print(f"Temperature from drivetemp: {temp}°C")
-                            return temp
-        except Exception as e:
-            print(f"drivetemp error: {e}")
+                        hwmon_dir = os.path.join(root, dir)
+                        # Проверяем, что это диск, а не CPU
+                        if 'disk' in dir.lower() or 'drive' in dir.lower():
+                            temp_file = os.path.join(hwmon_dir, 'temp1_input')
+                            if os.path.exists(temp_file):
+                                with open(temp_file, 'r') as f:
+                                    temp = float(f.read().strip())
+                                    if temp > 1000:
+                                        temp = temp / 1000.0
+                                    if 20 < temp < 80:
+                                        print(f"Disk temp from drivetemp: {temp}°C")
+                                        return temp
+        except:
+            pass
         
-        # Способ 5: Использование node_exporter (если он запущен)
+        # Способ 5: disk через node_exporter
         try:
-            # Пытаемся получить данные от node_exporter через API
-            import requests
             response = requests.get('http://node-exporter:9100/metrics', timeout=2)
             if response.status_code == 200:
                 for line in response.text.split('\n'):
-                    if 'node_hwmon_temp_celsius' in line:
-                        match = re.search(r'node_hwmon_temp_celsius\{[^}]*\}(.*)', line)
+                    if 'node_hwmon_temp_celsius' in line and ('disk' in line.lower() or 'drive' in line.lower()):
+                        match = re.search(r'node_hwmon_temp_celsius\{[^}]*\}\s+([\d.]+)', line)
                         if match:
                             temp = float(match.group(1))
-                            if 0 < temp < 100:
-                                print(f"Temperature from node_exporter: {temp}°C")
+                            if 20 < temp < 80:
+                                print(f"Disk temp from node_exporter: {temp}°C")
                                 return temp
         except:
             pass
@@ -265,7 +290,6 @@ def get_disk_temperature():
         print(f"Error getting disk temperature: {e}")
         return None
 
-    
 def get_system_stats():
     """Получаем статистику системы"""
     try:
@@ -276,7 +300,7 @@ def get_system_stats():
         # Загрузка каждого ядра
         cpu_core_percents = get_cpu_core_usage()
         
-        # Температуры
+        # Температуры (каждая из своего источника)
         cpu_temp_value = get_cpu_temperature()
         gpu_temp_value = get_gpu_temperature()
         disk_temp_value = get_disk_temperature()
@@ -306,8 +330,6 @@ def get_system_stats():
             gpu_temp.set(gpu_temp_value)
         if disk_temp_value is not None:
             disk_temp.set(disk_temp_value)
-        else:
-            disk_temp.set(0)  # Если нет данных, устанавливаем 0
         
         # Формируем данные для ответа
         result = {
@@ -351,7 +373,7 @@ def get_system_stats():
             'timestamp': datetime.now().strftime('%H:%M:%S')
         }
 
-# HTML_TEMPLATE (используйте из предыдущего ответа, он не изменился)
+# HTML_TEMPLATE (используйте из предыдущего ответа)
 
 @app.route('/')
 def index():
