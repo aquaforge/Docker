@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # Основной сервис с мониторингом
   docker-links:
     build: .
     container_name: docker-links
@@ -13,7 +12,6 @@ services:
     networks:
       - monitoring
 
-  # Prometheus
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -25,13 +23,13 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
     restart: unless-stopped
     networks:
       - monitoring
     depends_on:
       - docker-links
 
-  # Grafana
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -43,7 +41,6 @@ services:
       - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana-provisioning:/etc/grafana/provisioning
     restart: unless-stopped
     networks:
       - monitoring
