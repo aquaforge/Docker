@@ -1,5 +1,9 @@
 FROM python:3.11-slim
 
+# Устанавливаем переменные окружения для Python
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
 WORKDIR /app
 
 # Копируем файл с зависимостями и устанавливаем их
@@ -12,5 +16,5 @@ COPY matrix_multiplier.py .
 # Создаем директорию для логов
 RUN mkdir -p /app/logs
 
-# Запускаем программу
-CMD ["python", "matrix_multiplier.py"]
+# Используем exec форму для правильной обработки сигналов
+CMD ["python", "-u", "matrix_multiplier.py"]

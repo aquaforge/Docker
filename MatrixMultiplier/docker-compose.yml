@@ -1,7 +1,32 @@
+version: '3.8'
+
 services:
   matrix-app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: matrix_multiplier
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
+    
+    # Ограничение ресурсов - 6 ядер из 12
+    deploy:
+      resources:
+        limits:
+          cpus: '6.0'  # 6 полных ядер
+          memory: 8G   # Увеличиваем память для 6 ядер
+        reservations:
+          cpus: '3.0'  # Минимум 3 ядра
+          memory: 4G
+    
+    stop_grace_period: 30s
+    stop_signal: SIGTERM
+    
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OMP_NUM_THREADS=6  # 6 потоков для OpenBLAS/Numpy
+      - MKL_NUM_THREADS=6  # 6 потоков для Intel MKL
+      - OPENBLAS_NUM_THREADS=6  # 6 потоков для OpenBLAS
+      - NUMEXPR_NUM_THREADS=6  # 6 потоков для NumExpr
+      - VECLIB_MAXIMUM_THREADS=6  # Для Apple Accelerate
