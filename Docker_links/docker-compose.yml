@@ -2,8 +2,12 @@ services:
   docker-links:
     build: .
     container_name: docker-links
+    environment:
+      - TZ=Europe/Moscow    
     ports:
       - "80:80"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro      
     restart: unless-stopped

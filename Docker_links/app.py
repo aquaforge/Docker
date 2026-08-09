@@ -497,7 +497,7 @@ HTML_TEMPLATE = """
             🌐 Server: <strong>{{ server_ip }}</strong>
         </div>
         <div class="grafana-link">
-            📊 <a href="http://{{ server_ip }}:3000" target="_blank">Grafana Dashboard</a>
+            📊 <a href="http://{{ server_ip }}:3000/d/ad75cv7/99-stats?orgId=1&from=now-12h&to=now&timezone=browser" target="_blank">Grafana Dashboard</a>
         </div>
     </div>
     

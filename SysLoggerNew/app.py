@@ -228,7 +228,7 @@ def main():
             if iterations % 10 == 0:
                 logger.info(f"Still running, iteration {iterations} (success: {success_count}, fails: {fail_count})")
 
-            for _ in range(50):
+            for _ in range(50): # (Х секунд)*10
                 if not running:
                     break
                 time.sleep(0.1)
