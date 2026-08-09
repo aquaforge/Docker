@@ -4,11 +4,11 @@
 # ./start.sh
 
 # Создаем необходимые директории
-# mkdir -p logs
-# mkdir -p grafana_data
-# mkdir -p loki_data
-# mkdir -p grafana-provisioning/datasources
-# mkdir -p grafana-provisioning/dashboards
+mkdir -p logs
+mkdir -p grafana_data
+mkdir -p loki_data
+mkdir -p grafana-provisioning/datasources
+mkdir -p grafana-provisioning/dashboards
 
 # Устанавливаем правильные права
 chmod -R 777 grafana_data

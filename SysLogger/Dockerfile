@@ -1,24 +1,44 @@
 FROM python:3.9-slim
 
-# Установка системных зависимостей и утилит для температур
-RUN apt-get update && apt-get install -y \
+# Устанавливаем переменные окружения для Python
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Устанавливаем системные зависимости и утилиты для температуры
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     python3-dev \
     lm-sensors \
     smartmontools \
-    && rm -rf /var/lib/apt/lists/*
+    procps \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Установка Python пакетов
-RUN pip install --no-cache-dir psutil
+# Устанавливаем Python пакеты
+RUN pip install --no-cache-dir psutil==5.9.8
 
-# Создаем директорию для приложения
+# Создаем непривилегированного пользователя для безопасности
+RUN addgroup --system --gid 1001 appuser && \
+    adduser --system --uid 1001 --gid 1001 appuser
+
+# Создаем директории и устанавливаем права
+RUN mkdir -p /app /logs && \
+    chown -R appuser:appuser /app /logs
+
+# Переключаемся на непривилегированного пользователя
+USER appuser
+
+# Устанавливаем рабочую директорию
 WORKDIR /app
 
 # Копируем приложение
-COPY app.py .
+COPY --chown=appuser:appuser app.py .
 
-# Создаем директорию для логов
-RUN mkdir -p /logs
+# Healthcheck для Docker
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD pgrep -f "python -u app.py" || exit 1
 
 # Запускаем приложение
 CMD ["python", "-u", "app.py"]

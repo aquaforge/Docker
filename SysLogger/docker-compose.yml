@@ -1,43 +1,49 @@
 services:
-  # Сервис генерации логов
   sys_logger:
     build: .
-    container_name: sys-logger
-    volumes:
-      - ./logs:/logs  # Пробрасываем папку логов на хост
+    container_name: sys_logger
     restart: unless-stopped
-    privileged: true  # Для доступа к системной информации (температура CPU)
+    privileged: true  # Для доступа к системной информации
+    # Проброс устройств для доступа к температуре
+    devices:
+      - /dev:/dev
+    # Проброс системных путей для доступа к информации о температуре
+    volumes:
+      - ./logs:/logs
+      - /sys/class/thermal:/sys/class/thermal:ro
+      - /sys/devices:/sys/devices:ro
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
     networks:
       - monitoring
-    # Для graceful shutdown добавляем stop_signal
-    stop_signal: SIGTERM
-    # Время ожидания для graceful shutdown
-    stop_grace_period: 10s
+    # Устанавливаем режим доступа к хостовой системе
+    cap_add:
+      - SYS_ADMIN
+      - SYS_RAWIO
+      - SYS_PTRACE
 
-  # Promtail для сбора логов
   promtail:
     image: grafana/promtail:2.9.0
     container_name: promtail
     volumes:
-      - ./logs:/logs  # Монтируем ту же папку логов
+      - ./logs:/logs
       - ./promtail-config.yaml:/etc/promtail/config.yaml
-      - /var/log:/var/log:ro  # Опционально, если нужны системные логи
+      - /var/log:/var/log:ro
     command: -config.file=/etc/promtail/config.yaml
     depends_on:
       - sys_logger
     restart: unless-stopped
     ports:
-      - "9080:9080"  # Веб-интерфейс Promtail
+      - "9080:9080"
     networks:
       - monitoring
 
-  # Loki для хранения логов
   loki:
     image: grafana/loki:2.9.0
     container_name: loki
     volumes:
       - ./loki-config.yaml:/etc/loki/config.yaml
-      - ./loki_data:/loki  # Персистентное хранилище для Loki
+      - ./loki_data:/loki
     command: -config.file=/etc/loki/config.yaml
     ports:
       - "3100:3100"
@@ -45,7 +51,6 @@ services:
     networks:
       - monitoring
 
-  # Grafana для визуализации
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -54,7 +59,7 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_INSTALL_PLUGINS=grafana-piechart-panel  # Дополнительный плагин
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
     volumes:
       - ./grafana_data:/var/lib/grafana
       - ./grafana-provisioning:/etc/grafana/provisioning
@@ -63,7 +68,6 @@ services:
       - monitoring
     depends_on:
       - loki
-    # Даем время Loki стартовать
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
