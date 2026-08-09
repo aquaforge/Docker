@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   matrix-app:
     build:
@@ -15,18 +13,18 @@ services:
       resources:
         limits:
           cpus: '11.0'  # 11 полных ядер
-          memory: 8G
-        reservations:
-          cpus: '3.0'  # Минимум 3 ядра
-          memory: 4G
+          # memory: 8G
+        # reservations:
+        #   cpus: '3.0'  # Минимум 3 ядра
+        #   memory: 4G
     
     stop_grace_period: 30s
     stop_signal: SIGTERM
     
-    environment:
-      - PYTHONUNBUFFERED=1
-      - OMP_NUM_THREADS=6  # 6 потоков для OpenBLAS/Numpy
-      - MKL_NUM_THREADS=6  # 6 потоков для Intel MKL
-      - OPENBLAS_NUM_THREADS=6  # 6 потоков для OpenBLAS
-      - NUMEXPR_NUM_THREADS=6  # 6 потоков для NumExpr
-      - VECLIB_MAXIMUM_THREADS=6  # Для Apple Accelerate
+    # environment:
+    #   - PYTHONUNBUFFERED=1
+    #   - OMP_NUM_THREADS=6  # 6 потоков для OpenBLAS/Numpy
+    #   - MKL_NUM_THREADS=6  # 6 потоков для Intel MKL
+    #   - OPENBLAS_NUM_THREADS=6  # 6 потоков для OpenBLAS
+    #   - NUMEXPR_NUM_THREADS=6  # 6 потоков для NumExpr
+    #   - VECLIB_MAXIMUM_THREADS=6  # Для Apple Accelerate

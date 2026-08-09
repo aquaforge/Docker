@@ -1,0 +1,7 @@
+appConfig:
+  disableConfigurationForNonAdmin: true
+  auth:
+    users:
+      - user: alicia
+        hash: 5994471ABB01112AFCC18159F6CC74B4F511B99806DA59B3CAF5A9C173CACFC5 #12345
+        type: admin
