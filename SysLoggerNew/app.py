@@ -218,8 +218,8 @@ def main():
             if iterations % 10 == 0:
                 logger.info(f"Still running, iteration {iterations} (success: {success_count}, fails: {fail_count})")
             
-            # Пауза 2 секунды (20 * 0.1 = 2 секунды)
-            for _ in range(20):
+            # Пауза 10 секунд (100 * 0.1 = 10 секунд)
+            for _ in range(100):
                 if not running:
                     break
                 time.sleep(0.1)
@@ -235,3 +235,13 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# SELECT 
+#     MIN(cpu_temp) AS min_cpu_temp,
+#     MAX(cpu_temp) AS max_cpu_temp,
+#     MIN(memory_usage) AS min_memory_usage,
+#     MAX(memory_usage) AS max_memory_usage,
+#     MIN(timestamp) AS earliest_time,
+#     MAX(timestamp) AS latest_time
+# FROM system_metrics;    
