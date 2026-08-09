@@ -1,0 +1,75 @@
+services:
+  # Сервис генерации логов
+  sys_logger:
+    build: .
+    container_name: sys-logger
+    volumes:
+      - ./logs:/logs  # Пробрасываем папку логов на хост
+    restart: unless-stopped
+    privileged: true  # Для доступа к системной информации (температура CPU)
+    networks:
+      - monitoring
+    # Для graceful shutdown добавляем stop_signal
+    stop_signal: SIGTERM
+    # Время ожидания для graceful shutdown
+    stop_grace_period: 10s
+
+  # Promtail для сбора логов
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: promtail
+    volumes:
+      - ./logs:/logs  # Монтируем ту же папку логов
+      - ./promtail-config.yaml:/etc/promtail/config.yaml
+      - /var/log:/var/log:ro  # Опционально, если нужны системные логи
+    command: -config.file=/etc/promtail/config.yaml
+    depends_on:
+      - sys_logger
+    restart: unless-stopped
+    ports:
+      - "9080:9080"  # Веб-интерфейс Promtail
+    networks:
+      - monitoring
+
+  # Loki для хранения логов
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    volumes:
+      - ./loki-config.yaml:/etc/loki/config.yaml
+      - ./loki_data:/loki  # Персистентное хранилище для Loki
+    command: -config.file=/etc/loki/config.yaml
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  # Grafana для визуализации
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel  # Дополнительный плагин
+    volumes:
+      - ./grafana_data:/var/lib/grafana
+      - ./grafana-provisioning:/etc/grafana/provisioning
+    restart: unless-stopped
+    networks:
+      - monitoring
+    depends_on:
+      - loki
+    # Даем время Loki стартовать
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  monitoring:
+    driver: bridge
