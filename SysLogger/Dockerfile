@@ -16,25 +16,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Устанавливаем Python пакеты
-RUN pip install --no-cache-dir psutil==5.9.8
+# Устанавливаем Python пакеты отдельно для лучшего кеширования
+# Копируем requirements.txt если есть, иначе устанавливаем psutil
+COPY requirements.txt ./
+RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install --no-cache-dir psutil; fi
 
-# Создаем непривилегированного пользователя для безопасности
-RUN addgroup --system --gid 1001 appuser && \
-    adduser --system --uid 1001 --gid 1001 appuser
-
-# Создаем директории и устанавливаем права
-RUN mkdir -p /app /logs && \
-    chown -R appuser:appuser /app /logs
-
-# Переключаемся на непривилегированного пользователя
-USER appuser
+# Создаем директории
+RUN mkdir -p /app /logs
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
 # Копируем приложение
-COPY --chown=appuser:appuser app.py .
+COPY app.py .
 
 # Healthcheck для Docker
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

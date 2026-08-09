@@ -15,31 +15,37 @@ scrape_configs:
           - localhost
         labels:
           job: system_metrics
-          app: python-logger
+          app: sys_logger
           __path__: /logs/*.log
     pipeline_stages:
-      # Парсим строки в формате key=value pairs
-      - regex:
-          expression: 'timestamp=(?P<timestamp>[^\s]+)\s+cpu_temp=(?P<cpu_temp>[^\d.]+)°C\s+cpu_usage=(?P<cpu_usage>[^\s]+)\s+memory_usage=(?P<memory_usage>[^\s]+)\s+disk_usage=(?P<disk_usage>[^\s]+)'
+      # 1. Проверяем, что это JSON (если нет - пропускаем)
+      - match:
+          selector: '{app="sys_logger"}'
+          stages:
+            - json:
+                expressions:
+                  cpu_temp: cpu_temp
+                  cpu_usage: cpu_usage
+                  memory_usage: memory_usage
+                  disk_usage: disk_usage
+                  timestamp: timestamp
       
-      # Добавляем извлеченные значения как метки (лейблы)
+      # 2. Добавляем метки
       - labels:
-          cpu_temp: cpu_temp
           cpu_usage: cpu_usage
-          memory_usage: memory_usage
-          disk_usage: disk_usage
       
-      # Преобразуем timestamp в правильный формат для Loki
+      # 3. Преобразуем timestamp
       - timestamp:
           source: timestamp
           format: "2006-01-02 15:04:05.999"
       
-      # Удаляем исходный timestamp из сообщения, чтобы не дублировать
-      - replace:
-          expression: 'timestamp=\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\s+'
-          replace: ''
-      
-      # Добавляем дополнительные метаданные
+      # 4. Статические метки
       - static_labels:
-          source: "python-app"
+          source: "sys_logger"
           environment: "production"
+      
+      # 5. Удаляем пустые поля (если были ошибки парсинга)
+      - replace:
+          expression: ',+'
+          replace: ','
+          # Это исправляет двойные запятые в JSON если какие-то поля пропущены

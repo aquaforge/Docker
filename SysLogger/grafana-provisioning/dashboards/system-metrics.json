@@ -34,7 +34,7 @@
           "custom": {
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
+            "axisLabel": "Usage (%)",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -46,7 +46,7 @@
               "viz": false
             },
             "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineWidth": 2,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
@@ -84,8 +84,12 @@
       "id": 1,
       "options": {
         "legend": {
-          "calcs": [],
-          "displayMode": "list",
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ],
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
         },
@@ -100,7 +104,8 @@
             "type": "loki",
             "uid": "Loki"
           },
-          "expr": "sum by (cpu_usage) (rate({job=\"system_metrics\"}[5m]))",
+          "editorMode": "code",
+          "expr": "avg_over_time({job=\"system_metrics\"} | json | label_format cpu_usage=\"{{ .cpu_usage }}\" | unwrap cpu_usage [$__interval])",
           "legendFormat": "CPU Usage",
           "refId": "A"
         },
@@ -109,7 +114,8 @@
             "type": "loki",
             "uid": "Loki"
           },
-          "expr": "sum by (memory_usage) (rate({job=\"system_metrics\"}[5m]))",
+          "editorMode": "code",
+          "expr": "avg_over_time({job=\"system_metrics\"} | json | label_format memory_usage=\"{{ .memory_usage }}\" | unwrap memory_usage [$__interval])",
           "legendFormat": "Memory Usage",
           "refId": "B"
         },
@@ -118,12 +124,113 @@
             "type": "loki",
             "uid": "Loki"
           },
-          "expr": "sum by (disk_usage) (rate({job=\"system_metrics\"}[5m]))",
+          "editorMode": "code",
+          "expr": "avg_over_time({job=\"system_metrics\"} | json | label_format disk_usage=\"{{ .disk_usage }}\" | unwrap disk_usage [$__interval])",
           "legendFormat": "Disk Usage",
           "refId": "C"
         }
       ],
-      "title": "System Resource Usage",
+      "title": "System Resource Usage (%)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Temperature (°C)",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          },
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "Loki"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time({job=\"system_metrics\"} | json | label_format cpu_temp=\"{{ .cpu_temp }}\" | unwrap cpu_temp [$__interval])",
+          "legendFormat": "CPU Temperature",
+          "refId": "A"
+        }
+      ],
+      "title": "CPU Temperature",
       "type": "timeseries"
     },
     {
@@ -145,31 +252,31 @@
                 "value": null
               },
               {
-                "color": "orange",
-                "value": 30
+                "color": "yellow",
+                "value": 50
               },
               {
                 "color": "red",
-                "value": 60
+                "value": 80
               }
             ]
           },
-          "unit": "celsius"
+          "unit": "percent"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 4,
         "w": 6,
-        "x": 12,
-        "y": 0
+        "x": 0,
+        "y": 8
       },
-      "id": 2,
+      "id": 3,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "gauge",
         "justifyMode": "auto",
-        "orientation": "auto",
+        "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -177,6 +284,8 @@
           "fields": "",
           "values": false
         },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
         "textMode": "auto"
       },
       "targets": [
@@ -185,13 +294,14 @@
             "type": "loki",
             "uid": "Loki"
           },
-          "expr": "avg_over_time({job=\"system_metrics\"} |~ `cpu_temp` [1m])",
-          "legendFormat": "CPU Temperature",
+          "editorMode": "code",
+          "expr": "avg_over_time({job=\"system_metrics\"} | json | label_format cpu_usage=\"{{ .cpu_usage }}\" | unwrap cpu_usage [1m])",
+          "legendFormat": "CPU Usage",
           "refId": "A"
         }
       ],
-      "title": "CPU Temperature",
-      "type": "stat"
+      "title": "Current CPU Usage",
+      "type": "gauge"
     },
     {
       "datasource": {
@@ -213,11 +323,11 @@
               },
               {
                 "color": "yellow",
-                "value": 70
+                "value": 50
               },
               {
                 "color": "red",
-                "value": 85
+                "value": 80
               }
             ]
           },
@@ -226,15 +336,165 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 4,
         "w": 6,
-        "x": 18,
-        "y": 0
+        "x": 6,
+        "y": 8
       },
-      "id": 3,
+      "id": 4,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "gauge",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "Loki"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time({job=\"system_metrics\"} | json | label_format memory_usage=\"{{ .memory_usage }}\" | unwrap memory_usage [1m])",
+          "legendFormat": "Memory Usage",
+          "refId": "A"
+        }
+      ],
+      "title": "Current Memory Usage",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 8
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "gauge",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "Loki"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time({job=\"system_metrics\"} | json | label_format disk_usage=\"{{ .disk_usage }}\" | unwrap disk_usage [1m])",
+          "legendFormat": "Disk Usage",
+          "refId": "A"
+        }
+      ],
+      "title": "Current Disk Usage",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "green",
+                  "text": "OK"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          },
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 8
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -252,12 +512,13 @@
             "type": "loki",
             "uid": "Loki"
           },
-          "expr": "avg_over_time({job=\"system_metrics\"} |~ `memory_usage` [1m])",
-          "legendFormat": "Memory Usage",
+          "editorMode": "code",
+          "expr": "avg_over_time({job=\"system_metrics\"} | json | label_format cpu_temp=\"{{ .cpu_temp }}\" | unwrap cpu_temp [1m])",
+          "legendFormat": "Current Temperature",
           "refId": "A"
         }
       ],
-      "title": "Current Memory Usage",
+      "title": "Current Temperature",
       "type": "stat"
     },
     {
@@ -265,97 +526,13 @@
         "type": "loki",
         "uid": "Loki"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
-          "mappings": [],
-          "unit": "percent"
-        },
-        "overrides": []
-      },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 10,
+        "w": 24,
         "x": 0,
-        "y": 8
+        "y": 12
       },
-      "id": 4,
-      "options": {
-        "displayLabels": [
-          "name",
-          "percent"
-        ],
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "pieType": "pie",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "Loki"
-          },
-          "expr": "sum by (cpu_usage) (rate({job=\"system_metrics\"}[5m]))",
-          "legendFormat": "CPU",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "Loki"
-          },
-          "expr": "sum by (memory_usage) (rate({job=\"system_metrics\"}[5m]))",
-          "legendFormat": "Memory",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "Loki"
-          },
-          "expr": "sum by (disk_usage) (rate({job=\"system_metrics\"}[5m]))",
-          "legendFormat": "Disk",
-          "refId": "C"
-        }
-      ],
-      "title": "Resource Distribution",
-      "type": "piechart"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "Loki"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 8
-      },
-      "id": 5,
+      "id": 7,
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": true,
@@ -372,12 +549,13 @@
             "type": "loki",
             "uid": "Loki"
           },
-          "expr": "{job=\"system_metrics\"}",
+          "editorMode": "code",
+          "expr": "{job=\"system_metrics\"} | json",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Raw Logs",
+      "title": "Raw JSON Logs",
       "type": "logs"
     }
   ],
@@ -387,18 +565,19 @@
   "tags": [
     "system",
     "metrics",
-    "loki"
+    "loki",
+    "json"
   ],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "System Metrics Dashboard",
-  "uid": "system-metrics-dashboard",
+  "title": "System Metrics Dashboard (JSON)",
+  "uid": "system-metrics-dashboard-json",
   "version": 1
 }

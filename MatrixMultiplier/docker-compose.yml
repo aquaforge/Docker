@@ -14,8 +14,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '6.0'  # 6 полных ядер
-          memory: 8G   # Увеличиваем память для 6 ядер
+          cpus: '11.0'  # 11 полных ядер
+          memory: 8G
         reservations:
           cpus: '3.0'  # Минимум 3 ядра
           memory: 4G
