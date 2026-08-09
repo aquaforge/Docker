@@ -12,8 +12,10 @@ services:
       - 8014:80
     networks: # определяем сети в которых у нас будет работать pgAdmin.
       - immich_default # сеть, где у нас работает immich
+      - db
 networks:
     immich_default:
         external: true
-    # proxy:
-    #     external: true
+    db:
+        external: true   # используем существующую сеть, созданную командой выше
+        name: db         # явно указываем имя внешней сети

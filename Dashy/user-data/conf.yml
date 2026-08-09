@@ -5,3 +5,6 @@ appConfig:
       - user: alicia
         hash: 5994471ABB01112AFCC18159F6CC74B4F511B99806DA59B3CAF5A9C173CACFC5 #12345
         type: admin
+      - user: admin
+        hash: 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8 # SHA-256 для 'password'
+        type: admin

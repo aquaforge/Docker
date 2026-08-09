@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:16-alpine            # используем легковесную версию на alpine
+    container_name: postgres          # имя контейнера
+    restart: unless-stopped              # автоматический перезапуск
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: k4h5k8ow7
+      POSTGRES_DB: server_stats                  # база по умолчанию (можно задать свою)
+      TZ: Europe/Moscow                  # временная зона для корректного времени
+    ports:
+      - "5432:5432"                      # проброс порта на хост (опционально)
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data   # персистентное хранилище данных
+      # - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro  # (опционально) скрипт инициализации
+    networks:
+      - db                                # подключаем к сети db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d mydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+    # docker network create db
+  db:
+    external: true   # используем существующую сеть, созданную командой выше
+    name: db         # явно указываем имя внешней сети
