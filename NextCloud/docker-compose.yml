@@ -1,0 +1,18 @@
+# Сделать так, чтобы новые файлы/папки наследовали эти права
+# sudo setfacl -R -d -m u:1000:rwx ./data ./config
+
+services:
+  nextcloud:
+    # image: lscr.io/linuxserver/nextcloud:latest
+    image: linuxserver/nextcloud:latest
+    container_name: nextcloud
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Moscow
+    volumes:
+      - ./config:/config
+      - ./data:/data
+    ports:
+      - 10443:443
+    restart: unless-stopped
