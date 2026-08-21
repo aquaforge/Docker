@@ -18,8 +18,8 @@ services:
       - TZ=Europe/Moscow
     volumes:
     - ./config:/config
-    - ./ivan:/ivan
-    - ./data2:/data2
+    - /mnt/router_disk/Sync/syncthing/ivan:/ivan
+    - /mnt/router_disk/Sync/syncthing/ver:/ver
     # network_mode: host # Важно для локальной сети
     ports:
       - 8384:8384
