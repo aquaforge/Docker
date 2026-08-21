@@ -17,3 +17,10 @@ mount.cifs //192.168.1.1/EXT4-e8WiPOOI /mnt/router_disk
 # Проверить статус: nmcli radio wifi
 # Включить nmcli radio wifi on
 # nmcli radio wifi off
+
+
+# nano /etc/.smbcredentials
+#  username=
+#  password=
+#  nano /etc/fstab
+#  //192.168.1.1/EXT4-e8WiPOOI /mnt/router_disk cifs credentials=/etc/.smbcredentials,uid=1000,gid=1000,iocharset=utf8,file_mode=0755,dir_mode=0755,noperm 0 0

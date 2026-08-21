@@ -1,0 +1,29 @@
+# https://github.com/linuxserver/docker-syncthing
+# Сделать так, чтобы новые файлы/папки наследовали эти права
+# setfacl -R -d -m u:1000:rwx ./data2 ./ivan ./config
+
+# Смените владельца на пользователя ivan (UID 1000)
+# sudo chown -R ivan:ivan ./ivan ./data2 ./config
+# sudo chmod -R 755 ./ivan ./data2 ./config
+
+
+services:
+  syncthing:
+    image: linuxserver/syncthing:latest
+    container_name: syncthing
+    hostname: Sync99 #optional
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Moscow
+    volumes:
+    - ./config:/config
+    - ./ivan:/ivan
+    - ./data2:/data2
+    # network_mode: host # Важно для локальной сети
+    ports:
+      - 8384:8384
+      - 22000:22000/tcp
+      - 22000:22000/udp
+      - 21027:21027/udp
+    restart: unless-stopped
