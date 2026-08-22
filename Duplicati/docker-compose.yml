@@ -1,0 +1,21 @@
+# chown -R ivan:ivan  ./config && chmod -R 755 ./config
+
+services:
+  duplicati:
+    image: linuxserver/duplicati:latest
+    container_name: duplicati
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Moscow
+      - SETTINGS_ENCRYPTION_KEY=et43oi459wer45
+      # - CLI_ARGS= #optional
+      # - DUPLICATI__WEBSERVICE_PASSWORD=changeme
+    volumes:
+      - ./config:/config
+      - /mnt/router_disk/Sync/duplicati:/backups
+      - /home/ivan/Docker:/source
+    ports:
+      - 8200:8200
+    restart: unless-stopped
+
