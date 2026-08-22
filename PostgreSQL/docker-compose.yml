@@ -11,7 +11,7 @@ services:
     ports:
       - "5432:5432"                      # проброс порта на хост (опционально)
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data   # персистентное хранилище данных
+      - /home/ivan/DockerData/PostgreSQL/postgres_data:/var/lib/postgresql/data   # персистентное хранилище данных
       # - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro  # (опционально) скрипт инициализации
     networks:
       - db                                # подключаем к сети db

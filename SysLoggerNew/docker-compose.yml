@@ -17,7 +17,7 @@ services:
       - /dev:/dev
     # Проброс системных путей для доступа к информации о температуре
     volumes:
-      - ./logs:/logs
+      - /home/ivan/DockerData/SysLoggerNew/logs:/logs
       - /sys/class/thermal:/sys/class/thermal:ro
       - /sys/devices:/sys/devices:ro
       - /etc/localtime:/etc/localtime:ro

@@ -1,4 +1,5 @@
 # chown -R ivan:ivan  ./config && chmod -R 755 ./config
+# du -h --max-depth=1
 
 services:
   duplicati:
@@ -18,4 +19,7 @@ services:
     ports:
       - 8200:8200
     restart: unless-stopped
-
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'          # 50% от ОДНОГО ядра (абсолютное значение)
