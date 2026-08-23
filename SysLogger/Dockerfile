@@ -13,13 +13,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     lm-sensors \
     smartmontools \
     procps \
+    libpq-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Устанавливаем Python пакеты отдельно для лучшего кеширования
-# Копируем requirements.txt если есть, иначе устанавливаем psutil
+# Устанавливаем Python пакеты
 COPY requirements.txt ./
-RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install --no-cache-dir psutil; fi
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Создаем директории
 RUN mkdir -p /app /logs
@@ -29,6 +29,9 @@ WORKDIR /app
 
 # Копируем приложение
 COPY app.py .
+
+# Копируем .env файл если есть
+COPY .env* ./
 
 # Healthcheck для Docker
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

@@ -1,98 +1,39 @@
 services:
+
   sys_logger:
     build: .
     container_name: sys_logger
     restart: unless-stopped
     privileged: true  # Для доступа к системной информации
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=k4h5k8ow7
+      - POSTGRES_DB=server_stats
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - TZ=Europe/Moscow
     # Проброс устройств для доступа к температуре
     devices:
       - /dev:/dev
     # Проброс системных путей для доступа к информации о температуре
     volumes:
-      - ./logs:/logs
+      - /home/ivan/DockerData/SysLoggerNew/logs:/logs
       - /sys/class/thermal:/sys/class/thermal:ro
       - /sys/devices:/sys/devices:ro
-      # - /etc/localtime:/etc/localtime:ro
-      # - /etc/timezone:/etc/timezone:ro
-    # environment:
-      # - TZ=Europe/Moscow
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     stop_signal: SIGTERM
     stop_grace_period: 10s
     networks:
-      - monitoring
+      - db
     # Устанавливаем режим доступа к хостовой системе
     cap_add:
       - SYS_ADMIN
       - SYS_RAWIO
       - SYS_PTRACE
 
-  promtail:
-    image: grafana/promtail:2.9.0
-    container_name: promtail
-    volumes:
-      - ./logs:/logs
-      - ./promtail-config.yaml:/etc/promtail/config.yaml
-      - /var/log:/var/log:ro
-    #   - /etc/localtime:/etc/localtime:ro
-    # environment:
-    #   - TZ=Europe/Moscow
-    command: -config.file=/etc/promtail/config.yaml
-    depends_on:
-      - sys_logger
-    restart: unless-stopped
-    ports:
-      - "9080:9080"
-    networks:
-      - monitoring
-
-  loki:
-    image: grafana/loki:2.9.0
-    container_name: loki
-    volumes:
-      - ./loki-config.yaml:/etc/loki/config.yaml
-      - ./loki_data:/loki
-    #   - /etc/localtime:/etc/localtime:ro
-    #   # - /etc/timezone:/etc/timezone:ro
-    # environment:
-    #   - TZ=Europe/Moscow
-    command: -config.file=/etc/loki/config.yaml
-    ports:
-      - "3100:3100"
-    restart: unless-stopped
-    networks:
-      - monitoring
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    user: "${UID:-1000}"
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_INSTALL_PLUGINS=grafana-piechart-panel
-      # - TZ=Europe/Moscow
-    volumes:
-      - ./grafana_data:/var/lib/grafana
-      - ./grafana-provisioning:/etc/grafana/provisioning
-      # - /etc/localtime:/etc/localtime:ro
-      # - /etc/timezone:/etc/timezone:ro
-    restart: unless-stopped
-    networks:
-      - monitoring
-      - db
-    depends_on:
-      - loki
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
 networks:
-  monitoring:
-    driver: bridge
   db:
-    external: true   # используем существующую сеть, созданную командой выше
-    name: db         # явно указываем имя внешней сети    
+    external: true
+    name: db
