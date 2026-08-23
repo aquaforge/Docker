@@ -225,7 +225,7 @@ def main():
             # Сохраняем в файл для обратной совместимости
             write_log_entry(stats)
 
-            if iterations % 10 == 0:
+            if iterations % 100 == 0:
                 logger.info(f"Still running, iteration {iterations} (success: {success_count}, fails: {fail_count})")
 
             for _ in range(50): # (Х секунд)*10
