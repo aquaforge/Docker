@@ -4,10 +4,10 @@ import time
 import logging
 import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import json
-from sqlalchemy import create_engine, Column, Integer, Float, DateTime
+from sqlalchemy import create_engine, Column, Integer, Float, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
@@ -157,6 +157,51 @@ def save_to_postgres(stats):
         session.close()
 
 
+def delete_old_metrics(days=7):
+    """
+    Удаление метрик старше указанного количества дней
+    
+    Args:
+        days (int): Количество дней, старше которых данные удаляются
+    
+    Returns:
+        int: Количество удаленных записей
+    """
+    session = SessionLocal()
+    try:
+        # Вычисляем дату, старше которой удаляем
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        # Получаем количество записей, которые будут удалены
+        count_to_delete = session.query(SystemMetric).filter(
+            SystemMetric.timestamp < cutoff_date
+        ).count()
+        
+        if count_to_delete == 0:
+            logger.info(f"No metrics older than {days} days found")
+            return 0
+        
+        # Выполняем удаление
+        deleted_count = session.query(SystemMetric).filter(
+            SystemMetric.timestamp < cutoff_date
+        ).delete(synchronize_session=False)
+        
+        session.commit()
+        # logger.info(f"Deleted {deleted_count} metrics older than {days} days (cutoff: {cutoff_date})")
+        return deleted_count
+        
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Error deleting old metrics: {e}")
+        return 0
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Unexpected error while deleting old metrics: {e}")
+        return 0
+    finally:
+        session.close()
+
+
 def write_log_entry(stats):
     """Запись лога в файл в JSON формате (для обратной совместимости)"""
     if stats is None:
@@ -222,13 +267,21 @@ def main():
             else:
                 fail_count += 1
 
-
-            if iterations % 100 == 0:
+            # Каждые 500 итераций выполняем дополнительные действия
+            if iterations % 500 == 0:
                 logger.info(f"Still running, iteration {iterations} (success: {success_count}, fails: {fail_count})")
-                write_log_entry(stats) # Сохраняем в файл для обратной совместимости
+                write_log_entry(stats)  # Сохраняем в файл для обратной совместимости
+                
+                # Удаляем данные старше 7 дней
+                deleted_count = delete_old_metrics(days=7)
+                if deleted_count > 0:
+                    logger.info(f"Cleanup completed: {deleted_count} old records removed")
 
+            # SELECT id, "timestamp", cpu_temp, cpu_usage, memory_usage, disk_usage FROM public.system_metrics;
+            # SELECT count(*) FROM public.system_metrics;	
+            # DELETE FROM public.system_metrics WHERE "timestamp" < NOW() - INTERVAL '7 days';
 
-            for _ in range(50): # (Х секунд)*10
+            for _ in range(150):  # (Х секунд)*10
                 if not running:
                     break
                 time.sleep(0.1)
